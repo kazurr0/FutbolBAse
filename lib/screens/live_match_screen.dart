@@ -15,12 +15,14 @@ class LiveMatchScreen extends StatefulWidget {
     required this.awayTeam,
     required this.round,
     required this.plannedMinutes,
+    this.initialPlayers,
   });
 
   final String homeTeam;
   final String awayTeam;
   final String round;
   final int plannedMinutes;
+  final List<Player>? initialPlayers;
 
   @override
   State<LiveMatchScreen> createState() => _LiveMatchScreenState();
@@ -29,20 +31,7 @@ class LiveMatchScreen extends StatefulWidget {
 class _LiveMatchScreenState extends State<LiveMatchScreen> {
   final LocalStorageService _storage = LocalStorageService();
 
-  final List<Player> _players = [
-    Player(id: '13', number: 13, name: 'Leo García Prada', onField: true),
-    Player(id: '3', number: 3, name: 'Hugo Aira Almeida', onField: true),
-    Player(id: '5', number: 5, name: 'Leo Calzado Martínez', onField: true),
-    Player(id: '6', number: 6, name: 'Luka Calzado Martínez', onField: true),
-    Player(id: '10', number: 10, name: 'Iago Álvarez Gómez', onField: true),
-    Player(id: '11', number: 11, name: 'David Luca Gomes Valerio', onField: true),
-    Player(id: '12', number: 12, name: 'Héctor Romanos Poncelas', onField: true),
-    Player(id: '2', number: 2, name: 'Martín Fernández Sánchez', onField: false),
-    Player(id: '4', number: 4, name: 'Alejandro Prieto Molinete', onField: false),
-    Player(id: '7', number: 7, name: 'Mateo Otero Álvarez', onField: false),
-    Player(id: '8', number: 8, name: 'Nel Merayo Fernández', onField: false),
-    Player(id: '9', number: 9, name: 'Mateo Vuelta Imbachí', onField: false),
-  ];
+  late final List<Player> _players;
 
   final List<MatchEvent> _events = [];
 
@@ -61,6 +50,32 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
   @override
   void initState() {
     super.initState();
+    _players = widget.initialPlayers
+            ?.map(
+              (player) => Player(
+                id: player.id,
+                number: player.number,
+                name: player.name,
+                onField: player.onField,
+                playedSeconds: player.playedSeconds,
+                goals: player.goals,
+              ),
+            )
+            .toList() ??
+        [
+          Player(id: '13', number: 13, name: 'Leo García Prada', onField: true),
+          Player(id: '3', number: 3, name: 'Hugo Aira Almeida', onField: true),
+          Player(id: '5', number: 5, name: 'Leo Calzado Martínez', onField: true),
+          Player(id: '6', number: 6, name: 'Luka Calzado Martínez', onField: true),
+          Player(id: '10', number: 10, name: 'Iago Álvarez Gómez', onField: true),
+          Player(id: '11', number: 11, name: 'David Luca Gomes Valerio', onField: true),
+          Player(id: '12', number: 12, name: 'Héctor Romanos Poncelas', onField: true),
+          Player(id: '2', number: 2, name: 'Martín Fernández Sánchez', onField: false),
+          Player(id: '4', number: 4, name: 'Alejandro Prieto Molinete', onField: false),
+          Player(id: '7', number: 7, name: 'Mateo Otero Álvarez', onField: false),
+          Player(id: '8', number: 8, name: 'Nel Merayo Fernández', onField: false),
+          Player(id: '9', number: 9, name: 'Mateo Vuelta Imbachí', onField: false),
+        ];
     _restoreMatch();
   }
 
