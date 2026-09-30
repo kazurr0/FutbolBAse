@@ -136,32 +136,32 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
     super.dispose();
   }
 
+  void _ensureTimer() {
+    _timer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!_running || !mounted) return;
+      setState(() {
+        _matchSeconds++;
+        for (final player in _players) {
+          if (!player.onField) continue;
+          player.playedSeconds++;
+          if (_secondHalf) {
+            player.secondHalfSeconds++;
+          } else {
+            player.firstHalfSeconds++;
+          }
+        }
+      });
+      if (_matchSeconds % 5 == 0) {
+        _persistMatch();
+      }
+    });
+  }
+
   void _toggleTimer() {
     if (_isHalftime) return;
     setState(() => _running = !_running);
     _persistMatch();
-
-    if (_running) {
-      _timer ??= Timer.periodic(const Duration(seconds: 1), (_) {
-        if (!_running || !mounted) return;
-        setState(() {
-          _matchSeconds++;
-          for (final player in _players) {
-            if (player.onField) {
-              player.playedSeconds++;
-              if (_secondHalf) {
-                player.secondHalfSeconds++;
-              } else {
-                player.firstHalfSeconds++;
-              }
-            }
-          }
-        });
-        if (_matchSeconds % 5 == 0) {
-          _persistMatch();
-        }
-      });
-    }
+    if (_running) _ensureTimer();
   }
 
   String _formatTime(int seconds) {
@@ -173,8 +173,8 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
   Future<void> _registerSubstitution() async {
     if (_onField.isEmpty || _bench.isEmpty) return;
 
-    Player? playerOut;
-    Player? playerIn;
+    final selectedOutIds = <String>{};
+    final selectedInIds = <String>{};
 
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
@@ -183,74 +183,120 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            final balanced = selectedOutIds.isNotEmpty &&
+                selectedOutIds.length == selectedInIds.length;
+
             return SafeArea(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Cambio rápido',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  0,
+                  16,
+                  20 + MediaQuery.viewInsetsOf(context).bottom,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Cambios',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        balanced
+                            ? '${selectedOutIds.length} cambio(s) preparados'
+                            : 'Selecciona el mismo número de salidas y entradas',
+                        style: TextStyle(
+                          color: balanced
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Salen del campo',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _onField.map((player) {
+                          final selected = selectedOutIds.contains(player.id);
+                          return FilterChip(
+                            avatar: CircleAvatar(
+                              child: Text('${player.number}'),
+                            ),
+                            label: Text(player.name.split(' ').first),
+                            selected: selected,
+                            onSelected: (value) {
+                              setSheetState(() {
+                                if (value) {
+                                  selectedOutIds.add(player.id);
+                                } else {
+                                  selectedOutIds.remove(player.id);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 20),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Entran al campo',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _bench.map((player) {
+                          final selected = selectedInIds.contains(player.id);
+                          return FilterChip(
+                            avatar: CircleAvatar(
+                              child: Text('${player.number}'),
+                            ),
+                            label: Text(player.name.split(' ').first),
+                            selected: selected,
+                            onSelected: (value) {
+                              setSheetState(() {
+                                if (value) {
+                                  selectedInIds.add(player.id);
+                                } else {
+                                  selectedInIds.remove(player.id);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: balanced
+                              ? () => Navigator.pop(context, true)
+                              : null,
+                          icon: const Icon(Icons.swap_horiz),
+                          label: Text(
+                            selectedOutIds.length <= 1
+                                ? 'Confirmar cambio'
+                                : 'Confirmar ${selectedOutIds.length} cambios',
                           ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '1. Selecciona quién sale',
-                        style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _onField.map((player) {
-                        return ChoiceChip(
-                          label: Text('${player.number} · ${player.name.split(' ').first}'),
-                          selected: playerOut?.id == player.id,
-                          onSelected: (_) {
-                            setSheetState(() => playerOut = player);
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 20),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '2. Selecciona quién entra',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _bench.map((player) {
-                        return ChoiceChip(
-                          label: Text('${player.number} · ${player.name.split(' ').first}'),
-                          selected: playerIn?.id == player.id,
-                          onSelected: (_) {
-                            setSheetState(() => playerIn = player);
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: playerOut != null && playerIn != null
-                            ? () => Navigator.pop(context, true)
-                            : null,
-                        icon: const Icon(Icons.swap_horiz),
-                        label: const Text('Confirmar cambio'),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );
@@ -259,26 +305,50 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
       },
     );
 
-    if (confirmed != true || playerOut == null || playerIn == null) return;
+    if (confirmed != true) return;
+
+    final playersOut = _players
+        .where((player) => selectedOutIds.contains(player.id))
+        .toList();
+    final playersIn = _players
+        .where((player) => selectedInIds.contains(player.id))
+        .toList();
+
+    if (playersOut.isEmpty || playersOut.length != playersIn.length) return;
 
     setState(() {
-      playerOut!.onField = false;
-      playerIn!.onField = true;
+      for (final player in playersOut) {
+        player.onField = false;
+      }
+      for (final player in playersIn) {
+        player.onField = true;
+      }
+
+      final exits = playersOut
+          .map((player) => '${player.number} ${player.name}')
+          .join(', ');
+      final entries = playersIn
+          .map((player) => '${player.number} ${player.name}')
+          .join(', ');
+
       _events.insert(
         0,
         MatchEvent(
           type: MatchEventType.substitution,
           matchSecond: _matchSeconds,
-          description:
-              'Sale ${playerOut!.number} ${playerOut!.name} · Entra ${playerIn!.number} ${playerIn!.name}',
-          playerOutId: playerOut!.id,
-          playerInId: playerIn!.id,
+          description: 'Salen: $exits · Entran: $entries',
+          playerOutIds: playersOut.map((player) => player.id).toList(),
+          playerInIds: playersIn.map((player) => player.id).toList(),
         ),
       );
     });
 
     _persistMatch();
-    _showNotice('Cambio registrado');
+    _showNotice(
+      playersOut.length == 1
+          ? 'Cambio registrado'
+          : '${playersOut.length} cambios registrados',
+    );
   }
 
   Future<void> _registerGoal() async {
@@ -428,7 +498,9 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
     }
 
     if (_isHalftime) {
+      final firstHalfEndSecond = _matchSeconds;
       setState(() {
+        _matchSeconds = 25 * 60;
         _isHalftime = false;
         _secondHalf = true;
         _running = true;
@@ -437,22 +509,14 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
           MatchEvent(
             type: MatchEventType.secondHalf,
             matchSecond: _matchSeconds,
-            description: 'Comienza la 2ª parte',
+            previousMatchSecond: firstHalfEndSecond,
+            description: 'Comienza la 2ª parte en 25:00',
           ),
         );
       });
-      _timer ??= Timer.periodic(const Duration(seconds: 1), (_) {
-        if (!_running || !mounted) return;
-        setState(() {
-          _matchSeconds++;
-          for (final player in _players) {
-            if (player.onField) player.playedSeconds++;
-          }
-        });
-        if (_matchSeconds % 5 == 0) _persistMatch();
-      });
+      _ensureTimer();
       _persistMatch();
-      _showNotice('2ª parte iniciada');
+      _showNotice('2ª parte iniciada en 25:00');
       return;
     }
 
@@ -467,12 +531,14 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
 
       switch (event.type) {
         case MatchEventType.substitution:
-          final playerOut =
-              _players.firstWhere((p) => p.id == event.playerOutId);
-          final playerIn =
-              _players.firstWhere((p) => p.id == event.playerInId);
-          playerOut.onField = true;
-          playerIn.onField = false;
+          for (final id in event.allPlayerOutIds) {
+            final matches = _players.where((p) => p.id == id);
+            if (matches.isNotEmpty) matches.first.onField = true;
+          }
+          for (final id in event.allPlayerInIds) {
+            final matches = _players.where((p) => p.id == id);
+            if (matches.isNotEmpty) matches.first.onField = false;
+          }
           break;
         case MatchEventType.goalFor:
           _homeGoals = (_homeGoals - 1).clamp(0, 999).toInt();
@@ -492,6 +558,7 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
           _running = false;
           _isHalftime = true;
           _secondHalf = false;
+          _matchSeconds = event.previousMatchSecond ?? _matchSeconds;
           break;
       }
     });
