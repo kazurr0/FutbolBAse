@@ -638,7 +638,9 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
               ),
             ),
           ],
-        );
+        ),
+      ),
+    );
   }
 }
 
@@ -780,8 +782,7 @@ class _PlayerRow extends StatelessWidget {
           color: Theme.of(context).colorScheme.outlineVariant,
         ),
       ),
-      child:
-        child: Row(
+      child: Row(
           children: [
             CircleAvatar(
               radius: 14,
