@@ -2,6 +2,8 @@ enum MatchEventType {
   substitution,
   goalFor,
   goalAgainst,
+  halftime,
+  secondHalf,
 }
 
 class MatchEvent {
