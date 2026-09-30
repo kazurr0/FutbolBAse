@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../models/match_event.dart';
 import '../models/player.dart';
+import '../services/club_badge_catalog.dart';
 import '../services/local_storage_service.dart';
 import '../services/season_storage_service.dart';
 import 'match_summary_screen.dart';
@@ -775,21 +776,18 @@ class _ScoreHeader extends StatelessWidget {
             Text('Jornada $round'),
             const SizedBox(height: 4),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Text(
-                    homeTeam,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  child: _TeamBadgeName(
+                    teamName: homeTeam,
+                    alignEnd: false,
                   ),
                 ),
-                const SizedBox(width: 70),
+                const SizedBox(width: 14),
                 Expanded(
-                  child: Text(
-                    awayTeam,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  child: _TeamBadgeName(
+                    teamName: awayTeam,
+                    alignEnd: true,
                   ),
                 ),
               ],
@@ -930,6 +928,57 @@ class _MatchAction extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _TeamBadgeName extends StatelessWidget {
+  const _TeamBadgeName({
+    required this.teamName,
+    required this.alignEnd,
+  });
+
+  final String teamName;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final badge = ClubBadgeCatalog.bytesFor(teamName);
+
+    final image = badge == null
+        ? CircleAvatar(
+            radius: 20,
+            child: Text(
+              teamName.isEmpty ? '?' : teamName.characters.first,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          )
+        : SizedBox(
+            width: 42,
+            height: 42,
+            child: Image.memory(
+              badge,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.medium,
+            ),
+          );
+
+    final name = Expanded(
+      child: Text(
+        teamName,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+        style: const TextStyle(fontWeight: FontWeight.w700),
+      ),
+    );
+
+    return Row(
+      mainAxisAlignment:
+          alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
+      children: alignEnd
+          ? [name, const SizedBox(width: 8), image]
+          : [image, const SizedBox(width: 8), name],
     );
   }
 }
