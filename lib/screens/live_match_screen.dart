@@ -62,6 +62,8 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
                 onField: player.onField,
                 started: player.started,
                 playedSeconds: player.playedSeconds,
+                firstHalfSeconds: player.firstHalfSeconds,
+                secondHalfSeconds: player.secondHalfSeconds,
                 goals: player.goals,
               ),
             )
@@ -146,6 +148,11 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
           for (final player in _players) {
             if (player.onField) {
               player.playedSeconds++;
+              if (_secondHalf) {
+                player.secondHalfSeconds++;
+              } else {
+                player.firstHalfSeconds++;
+              }
             }
           }
         });
@@ -692,7 +699,9 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
                     (player) => _PlayerRow(
                       player: player,
                       time: _formatTime(player.playedSeconds),
-                      progress: player.playedSeconds / plannedSeconds,
+                      plannedSeconds: plannedSeconds,
+                      firstHalfSeconds: player.firstHalfSeconds,
+                      secondHalfSeconds: player.secondHalfSeconds,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -701,7 +710,9 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
                     (player) => _PlayerRow(
                       player: player,
                       time: _formatTime(player.playedSeconds),
-                      progress: player.playedSeconds / plannedSeconds,
+                      plannedSeconds: plannedSeconds,
+                      firstHalfSeconds: player.firstHalfSeconds,
+                      secondHalfSeconds: player.secondHalfSeconds,
                     ),
                   ),
 
@@ -950,16 +961,65 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
+class _PlayerTimeline extends StatelessWidget {
+  const _PlayerTimeline({
+    required this.plannedSeconds,
+    required this.firstHalfSeconds,
+    required this.secondHalfSeconds,
+  });
+
+  final int plannedSeconds;
+  final int firstHalfSeconds;
+  final int secondHalfSeconds;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final total = plannedSeconds <= 0 ? 1 : plannedSeconds;
+        final firstRatio = (firstHalfSeconds / total).clamp(0.0, 1.0);
+        final secondRatio =
+            (secondHalfSeconds / total).clamp(0.0, 1.0 - firstRatio);
+
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: Container(
+            height: 5,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: constraints.maxWidth * firstRatio,
+                  child: Container(color: Colors.green),
+                ),
+                SizedBox(
+                  width: constraints.maxWidth * secondRatio,
+                  child: Container(color: Colors.blue),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _PlayerRow extends StatelessWidget {
   const _PlayerRow({
     required this.player,
     required this.time,
-    required this.progress,
+    required this.plannedSeconds,
+    required this.firstHalfSeconds,
+    required this.secondHalfSeconds,
   });
 
   final Player player;
   final String time;
-  final double progress;
+  final int plannedSeconds;
+  final int firstHalfSeconds;
+  final int secondHalfSeconds;
 
   @override
   Widget build(BuildContext context) {
@@ -1005,10 +1065,10 @@ class _PlayerRow extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 3),
-                  LinearProgressIndicator(
-                    value: progress < 0 ? 0 : (progress > 1 ? 1 : progress),
-                    minHeight: 4,
-                    borderRadius: BorderRadius.circular(99),
+                  _PlayerTimeline(
+                    plannedSeconds: plannedSeconds,
+                    firstHalfSeconds: firstHalfSeconds,
+                    secondHalfSeconds: secondHalfSeconds,
                   ),
                 ],
               ),
