@@ -99,8 +99,11 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _startMatch() {
+  Future<void> _startMatch() async {
     if (!_formKey.currentState!.validate()) return;
+
+    await _storage.clearMatch();
+    if (!mounted) return;
 
     Navigator.of(context).push(
       MaterialPageRoute(
