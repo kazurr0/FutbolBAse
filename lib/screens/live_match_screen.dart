@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/match_event.dart';
 import '../models/player.dart';
 import '../services/local_storage_service.dart';
+import '../services/season_storage_service.dart';
 import 'match_summary_screen.dart';
 
 class LiveMatchScreen extends StatefulWidget {
@@ -28,6 +29,7 @@ class LiveMatchScreen extends StatefulWidget {
 
 class _LiveMatchScreenState extends State<LiveMatchScreen> {
   final LocalStorageService _storage = LocalStorageService();
+  final SeasonStorageService _seasonStorage = SeasonStorageService();
 
   late final List<Player> _players;
 
@@ -587,6 +589,15 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
 
     setState(() => _running = false);
     await _persistMatch();
+    await _seasonStorage.saveFinishedMatch(
+      team: widget.homeTeam,
+      opponent: widget.awayTeam,
+      round: widget.round,
+      matchSeconds: _matchSeconds,
+      goalsFor: _homeGoals,
+      goalsAgainst: _awayGoals,
+      players: _players,
+    );
     await _storage.clearMatch();
     if (!mounted) return;
 
