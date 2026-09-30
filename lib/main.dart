@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'screens/live_match_screen.dart';
+import 'screens/home_screen.dart';
 
 void main() {
   runApp(const FutbolBaseApp());
@@ -19,7 +19,7 @@ class FutbolBaseApp extends StatelessWidget {
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF5F7FA),
       ),
-      home: const LiveMatchScreen(),
+      home: const HomeScreen(),
     );
   }
 }
