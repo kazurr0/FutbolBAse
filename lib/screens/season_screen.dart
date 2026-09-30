@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/club_badge_catalog.dart';
 import '../services/season_storage_service.dart';
 
 class SeasonScreen extends StatefulWidget {
@@ -137,7 +138,7 @@ class _SeasonScreenState extends State<SeasonScreen> {
                   ..._matches.reversed.map(
                     (match) => Card(
                       child: ListTile(
-                        leading: const Icon(Icons.calendar_month),
+                        leading: _ClubBadge(teamName: match.opponent),
                         title: Text(
                           '${match.team} ${match.goalsFor} - '
                           '${match.goalsAgainst} ${match.opponent}',
@@ -150,6 +151,35 @@ class _SeasonScreenState extends State<SeasonScreen> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+class _ClubBadge extends StatelessWidget {
+  const _ClubBadge({required this.teamName});
+
+  final String teamName;
+
+  @override
+  Widget build(BuildContext context) {
+    final bytes = ClubBadgeCatalog.bytesFor(teamName);
+    if (bytes == null) {
+      return CircleAvatar(
+        child: Text(
+          teamName.isEmpty ? '?' : teamName.characters.first,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      );
+    }
+
+    return SizedBox(
+      width: 40,
+      height: 40,
+      child: Image.memory(
+        bytes,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.medium,
+      ),
     );
   }
 }
