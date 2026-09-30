@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../models/match_event.dart';
 import '../models/player.dart';
 import '../services/local_storage_service.dart';
+import 'match_summary_screen.dart';
 
 class LiveMatchScreen extends StatefulWidget {
   const LiveMatchScreen({
@@ -66,6 +67,10 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
   Future<void> _restoreMatch() async {
     final snapshot = await _storage.loadMatch();
     if (snapshot == null || !mounted) return;
+    final sameMatch = snapshot.homeTeam == widget.homeTeam &&
+        snapshot.awayTeam == widget.awayTeam &&
+        snapshot.round == widget.round;
+    if (!sameMatch) return;
 
     setState(() {
       if (snapshot.players.isNotEmpty) {
@@ -86,6 +91,10 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
   Future<void> _persistMatch() async {
     await _storage.saveMatch(
       MatchSnapshot(
+        homeTeam: widget.homeTeam,
+        awayTeam: widget.awayTeam,
+        round: widget.round,
+        plannedMinutes: widget.plannedMinutes,
         matchSeconds: _matchSeconds,
         homeGoals: _homeGoals,
         awayGoals: _awayGoals,
@@ -403,6 +412,52 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
     _persistMatch();
   }
 
+  Future<void> _finishMatch() async {
+    if (_running) {
+      setState(() => _running = false);
+    }
+    await _persistMatch();
+    if (!mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Finalizar partido'),
+        content: const Text(
+          'Se cerrará el cronómetro y se mostrará el resumen de minutos.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Finalizar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    await _storage.clearMatch();
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => MatchSummaryScreen(
+          homeTeam: widget.homeTeam,
+          awayTeam: widget.awayTeam,
+          homeGoals: _homeGoals,
+          awayGoals: _awayGoals,
+          matchSeconds: _matchSeconds,
+          players: _players,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final maxSeconds = _players.fold<int>(
@@ -449,6 +504,17 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
                     ),
                   ),
                 ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _finishMatch,
+                  icon: const Icon(Icons.flag),
+                  label: const Text('Finalizar partido'),
+                ),
               ),
             ),
             Expanded(
