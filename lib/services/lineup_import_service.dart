@@ -70,13 +70,44 @@ class LineupImportService {
       ourTeam = _cleanTeamName('$first $second');
     }
 
-    final matchupLine = lines.firstWhere(
-      (line) =>
-          line.contains(' - ') &&
-          !line.toUpperCase().startsWith('FECHA:') &&
-          !line.toUpperCase().contains('FECHA DE'),
-      orElse: () => '',
-    );
+    String matchupLine = '';
+
+    if (ourTeam.isNotEmpty) {
+      matchupLine = lines.firstWhere(
+        (line) {
+          if (!line.contains(' - ')) return false;
+          final parts = line.split(' - ');
+          if (parts.length < 2) return false;
+
+          final left = _cleanTeamName(parts.first);
+          final right = _cleanTeamName(parts.sublist(1).join(' - '));
+          return _sameTeam(left, ourTeam) || _sameTeam(right, ourTeam);
+        },
+        orElse: () => '',
+      );
+    }
+
+    if (matchupLine.isEmpty) {
+      matchupLine = lines.firstWhere(
+        (line) {
+          final upper = line.toUpperCase();
+          if (!line.contains(' - ')) return false;
+          if (upper.startsWith('FECHA:') ||
+              upper.contains('FECHA DE') ||
+              upper.contains('DIVISIÓN') ||
+              upper.contains('JORNADA') ||
+              upper.contains('GRUPO')) {
+            return false;
+          }
+
+          final parts = line.split(' - ');
+          return parts.length >= 2 &&
+              parts.first.trim().isNotEmpty &&
+              parts.sublist(1).join(' - ').trim().isNotEmpty;
+        },
+        orElse: () => '',
+      );
+    }
 
     String opponent = '';
     if (matchupLine.isNotEmpty) {
@@ -88,8 +119,10 @@ class LineupImportService {
         if (ourTeam.isEmpty) {
           ourTeam = right;
           opponent = left;
-        } else {
-          opponent = _sameTeam(left, ourTeam) ? right : left;
+        } else if (_sameTeam(left, ourTeam)) {
+          opponent = right;
+        } else if (_sameTeam(right, ourTeam)) {
+          opponent = left;
         }
       }
     }
