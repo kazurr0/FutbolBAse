@@ -639,6 +639,7 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
             ),
           ],
         ),
+      ),
     );
   }
 }
@@ -835,7 +836,6 @@ class _PlayerRow extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }
