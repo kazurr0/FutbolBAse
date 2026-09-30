@@ -1,17 +1,53 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/widgets.dart';
+
 class ClubBadgeCatalog {
   const ClubBadgeCatalog._();
 
+  static final Map<String, Uint8List> _byteCache = {};
+  static final Map<String, MemoryImage> _imageCache = {};
+
   static Uint8List? bytesFor(String teamName) {
-    final encoded = _badges[_normalize(teamName)];
-    return encoded == null ? null : base64Decode(encoded);
+    final key = _resolveKey(teamName);
+    if (key == null) return null;
+    return _byteCache.putIfAbsent(key, () => base64Decode(_badges[key]!));
+  }
+
+  static ImageProvider<Object>? imageProviderFor(String teamName) {
+    final key = _resolveKey(teamName);
+    if (key == null) return null;
+    return _imageCache.putIfAbsent(
+      key,
+      () => MemoryImage(
+        _byteCache.putIfAbsent(key, () => base64Decode(_badges[key]!)),
+      ),
+    );
   }
 
   static String _normalize(String value) => value
       .toUpperCase()
       .replaceAll(RegExp(r'[^A-Z0-9ÁÉÍÓÚÜÑ]'), '');
+
+  static String? _resolveKey(String teamName) {
+    final normalized = _normalize(teamName);
+    if (_badges.containsKey(normalized)) return normalized;
+
+    for (final key in _badges.keys) {
+      if (normalized.contains(key) || key.contains(normalized)) {
+        return key;
+      }
+    }
+
+    if (normalized.contains('PONFERRADACITY')) {
+      return 'CDPONFERRADACITY';
+    }
+    if (normalized.contains('PONFERRADINA')) {
+      return 'SDPONFERRADINASAD';
+    }
+    return null;
+  }
 
   static const Map<String, String> _badges = {
     'CDPONFERRADACITY':
