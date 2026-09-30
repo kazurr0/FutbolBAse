@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../models/player.dart';
+import '../services/lineup_import_service.dart';
 import '../services/local_storage_service.dart';
 import 'live_match_screen.dart';
 
@@ -13,7 +15,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _formKey = GlobalKey<FormState>();
   final LocalStorageService _storage = LocalStorageService();
+  final LineupImportService _lineupImportService = LineupImportService();
   MatchSnapshot? _savedMatch;
+  List<Player>? _importedPlayers;
+  String? _importStatus;
+  bool _importing = false;
   final _teamController = TextEditingController(text: 'S.D. Ponferradina');
   final _rivalController = TextEditingController(text: 'C.D. Ponferrada City');
   final _roundController = TextEditingController(text: '24');
@@ -47,6 +53,42 @@ class _HomeScreenState extends State<HomeScreen> {
     ).then((_) => _loadSavedMatch());
   }
 
+  Future<void> _importPdf() async {
+    setState(() {
+      _importing = true;
+      _importStatus = null;
+    });
+
+    try {
+      final result = await _lineupImportService.pickAndImportPdf();
+      if (result == null || !mounted) return;
+
+      setState(() {
+        _teamController.text = result.ourTeam;
+        _rivalController.text = result.opponent;
+        if (result.round.isNotEmpty) {
+          _roundController.text = result.round;
+        }
+        _importedPlayers = result.players;
+        _importStatus =
+            '${result.players.length} jugadores cargados desde el PDF';
+      });
+    } on FormatException catch (error) {
+      if (!mounted) return;
+      setState(() => _importStatus = error.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(
+        () => _importStatus =
+            'No se pudo leer el PDF. Prueba con otro documento.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _importing = false);
+      }
+    }
+  }
+
   @override
   void dispose() {
     _teamController.dispose();
@@ -66,6 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
           awayTeam: _rivalController.text.trim(),
           round: _roundController.text.trim(),
           plannedMinutes: int.parse(_minutesController.text.trim()),
+          initialPlayers: _importedPlayers,
         ),
       ),
     ).then((_) => _loadSavedMatch());
@@ -191,10 +234,56 @@ class _HomeScreenState extends State<HomeScreen> {
               child: ListTile(
                 leading: const Icon(Icons.picture_as_pdf),
                 title: const Text('Importar alineación desde PDF'),
-                subtitle: const Text('Lo añadiremos en la siguiente fase.'),
-                trailing: const Icon(Icons.lock_clock),
+                subtitle: Text(
+                  _importStatus ??
+                      'Carga jornada, equipos y jugadores automáticamente.',
+                ),
+                trailing: _importing
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.upload_file),
+                onTap: _importing ? null : _importPdf,
               ),
             ),
+            if (_importedPlayers != null) ...[
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Alineación detectada',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${_importedPlayers!.where((p) => p.onField).length} titulares · '
+                        '${_importedPlayers!.where((p) => !p.onField).length} suplentes',
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: _importedPlayers!
+                            .map(
+                              (player) => Chip(
+                                label: Text(
+                                  '${player.number} · ${player.name.split(' ').first}',
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
