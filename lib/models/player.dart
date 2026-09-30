@@ -6,6 +6,8 @@ class Player {
     required this.onField,
     bool? started,
     this.playedSeconds = 0,
+    this.firstHalfSeconds = 0,
+    this.secondHalfSeconds = 0,
     this.goals = 0,
   }) : started = started ?? onField;
 
@@ -15,6 +17,8 @@ class Player {
   bool onField;
   final bool started;
   int playedSeconds;
+  int firstHalfSeconds;
+  int secondHalfSeconds;
   int goals;
 
   Map<String, dynamic> toJson() => {
@@ -24,18 +28,24 @@ class Player {
         'onField': onField,
         'started': started,
         'playedSeconds': playedSeconds,
+        'firstHalfSeconds': firstHalfSeconds,
+        'secondHalfSeconds': secondHalfSeconds,
         'goals': goals,
       };
 
   factory Player.fromJson(Map<String, dynamic> json) {
     final onField = json['onField'] as bool? ?? false;
+    final playedSeconds = json['playedSeconds'] as int? ?? 0;
     return Player(
       id: json['id'] as String,
       number: json['number'] as int,
       name: json['name'] as String,
       onField: onField,
       started: json['started'] as bool? ?? onField,
-      playedSeconds: json['playedSeconds'] as int? ?? 0,
+      playedSeconds: playedSeconds,
+      firstHalfSeconds:
+          json['firstHalfSeconds'] as int? ?? playedSeconds,
+      secondHalfSeconds: json['secondHalfSeconds'] as int? ?? 0,
       goals: json['goals'] as int? ?? 0,
     );
   }
