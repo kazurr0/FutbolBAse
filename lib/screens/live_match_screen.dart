@@ -8,7 +8,18 @@ import '../models/player.dart';
 import '../services/local_storage_service.dart';
 
 class LiveMatchScreen extends StatefulWidget {
-  const LiveMatchScreen({super.key});
+  const LiveMatchScreen({
+    super.key,
+    required this.homeTeam,
+    required this.awayTeam,
+    required this.round,
+    required this.plannedMinutes,
+  });
+
+  final String homeTeam;
+  final String awayTeam;
+  final String round;
+  final int plannedMinutes;
 
   @override
   State<LiveMatchScreen> createState() => _LiveMatchScreenState();
@@ -409,6 +420,9 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
         child: Column(
           children: [
             _ScoreHeader(
+              homeTeam: widget.homeTeam,
+              awayTeam: widget.awayTeam,
+              round: widget.round,
               homeGoals: _homeGoals,
               awayGoals: _awayGoals,
               time: _formatTime(_matchSeconds),
@@ -513,6 +527,9 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
 
 class _ScoreHeader extends StatelessWidget {
   const _ScoreHeader({
+    required this.homeTeam,
+    required this.awayTeam,
+    required this.round,
     required this.homeGoals,
     required this.awayGoals,
     required this.time,
@@ -520,6 +537,9 @@ class _ScoreHeader extends StatelessWidget {
     required this.onToggle,
   });
 
+  final String homeTeam;
+  final String awayTeam;
+  final String round;
   final int homeGoals;
   final int awayGoals;
   final String time;
@@ -534,24 +554,24 @@ class _ScoreHeader extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Column(
           children: [
-            const Text('Jornada 24'),
+            Text('Jornada $round'),
             const SizedBox(height: 4),
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   child: Text(
-                    'S.D. Ponferradina',
+                    homeTeam,
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
-                SizedBox(width: 70),
+                const SizedBox(width: 70),
                 Expanded(
                   child: Text(
-                    'C.D. Ponferrada City',
+                    awayTeam,
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
