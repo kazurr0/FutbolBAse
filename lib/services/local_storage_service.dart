@@ -4,6 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class MatchSnapshot {
   const MatchSnapshot({
+    required this.homeTeam,
+    required this.awayTeam,
+    required this.round,
+    required this.plannedMinutes,
     required this.matchSeconds,
     required this.homeGoals,
     required this.awayGoals,
@@ -11,6 +15,10 @@ class MatchSnapshot {
     required this.events,
   });
 
+  final String homeTeam;
+  final String awayTeam;
+  final String round;
+  final int plannedMinutes;
   final int matchSeconds;
   final int homeGoals;
   final int awayGoals;
@@ -18,6 +26,10 @@ class MatchSnapshot {
   final List<Map<String, dynamic>> events;
 
   Map<String, dynamic> toJson() => {
+        'homeTeam': homeTeam,
+        'awayTeam': awayTeam,
+        'round': round,
+        'plannedMinutes': plannedMinutes,
         'matchSeconds': matchSeconds,
         'homeGoals': homeGoals,
         'awayGoals': awayGoals,
@@ -27,6 +39,10 @@ class MatchSnapshot {
 
   factory MatchSnapshot.fromJson(Map<String, dynamic> json) {
     return MatchSnapshot(
+      homeTeam: json['homeTeam'] as String? ?? 'S.D. Ponferradina',
+      awayTeam: json['awayTeam'] as String? ?? 'C.D. Ponferrada City',
+      round: json['round'] as String? ?? '24',
+      plannedMinutes: json['plannedMinutes'] as int? ?? 50,
       matchSeconds: json['matchSeconds'] as int? ?? 0,
       homeGoals: json['homeGoals'] as int? ?? 0,
       awayGoals: json['awayGoals'] as int? ?? 0,
