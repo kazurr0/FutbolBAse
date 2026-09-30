@@ -1010,7 +1010,7 @@ class _TeamBadgeName extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final badge = ClubBadgeCatalog.bytesFor(teamName);
+    final badge = ClubBadgeCatalog.imageProviderFor(teamName);
 
     final image = badge == null
         ? CircleAvatar(
@@ -1023,10 +1023,11 @@ class _TeamBadgeName extends StatelessWidget {
         : SizedBox(
             width: 42,
             height: 42,
-            child: Image.memory(
-              badge,
+            child: Image(
+              image: badge,
               fit: BoxFit.contain,
               filterQuality: FilterQuality.medium,
+              gaplessPlayback: true,
             ),
           );
 
