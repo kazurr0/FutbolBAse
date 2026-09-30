@@ -4,6 +4,7 @@ import '../models/player.dart';
 import '../services/lineup_import_service.dart';
 import '../services/local_storage_service.dart';
 import 'live_match_screen.dart';
+import 'season_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -120,11 +121,42 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('FutbolBAse'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'Temporada',
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SeasonScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.leaderboard),
+                title: const Text('Temporada'),
+                subtitle: const Text(
+                  'Consulta minutos, partidos, titularidades y goles acumulados.',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const SeasonScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
             Text(
               'Nuevo partido',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
