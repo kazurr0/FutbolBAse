@@ -13,6 +13,8 @@ class MatchSnapshot {
     required this.awayGoals,
     required this.players,
     required this.events,
+    this.isHalftime = false,
+    this.secondHalf = false,
   });
 
   final String homeTeam;
@@ -24,6 +26,8 @@ class MatchSnapshot {
   final int awayGoals;
   final List<Map<String, dynamic>> players;
   final List<Map<String, dynamic>> events;
+  final bool isHalftime;
+  final bool secondHalf;
 
   Map<String, dynamic> toJson() => {
         'homeTeam': homeTeam,
@@ -35,6 +39,8 @@ class MatchSnapshot {
         'awayGoals': awayGoals,
         'players': players,
         'events': events,
+        'isHalftime': isHalftime,
+        'secondHalf': secondHalf,
       };
 
   factory MatchSnapshot.fromJson(Map<String, dynamic> json) {
@@ -52,6 +58,8 @@ class MatchSnapshot {
       events: (json['events'] as List<dynamic>? ?? const [])
           .whereType<Map<String, dynamic>>()
           .toList(),
+      isHalftime: json['isHalftime'] as bool? ?? false,
+      secondHalf: json['secondHalf'] as bool? ?? false,
     );
   }
 }
