@@ -14,6 +14,9 @@ class MatchEvent {
     this.playerOutId,
     this.playerInId,
     this.playerId,
+    this.playerOutIds = const [],
+    this.playerInIds = const [],
+    this.previousMatchSecond,
   });
 
   final MatchEventType type;
@@ -22,6 +25,19 @@ class MatchEvent {
   final String? playerOutId;
   final String? playerInId;
   final String? playerId;
+  final List<String> playerOutIds;
+  final List<String> playerInIds;
+  final int? previousMatchSecond;
+
+  List<String> get allPlayerOutIds =>
+      playerOutIds.isNotEmpty
+          ? playerOutIds
+          : (playerOutId == null ? const [] : [playerOutId!]);
+
+  List<String> get allPlayerInIds =>
+      playerInIds.isNotEmpty
+          ? playerInIds
+          : (playerInId == null ? const [] : [playerInId!]);
 
   Map<String, dynamic> toJson() => {
         'type': type.name,
@@ -30,6 +46,9 @@ class MatchEvent {
         'playerOutId': playerOutId,
         'playerInId': playerInId,
         'playerId': playerId,
+        'playerOutIds': playerOutIds,
+        'playerInIds': playerInIds,
+        'previousMatchSecond': previousMatchSecond,
       };
 
   factory MatchEvent.fromJson(Map<String, dynamic> json) {
@@ -46,6 +65,13 @@ class MatchEvent {
       playerOutId: json['playerOutId'] as String?,
       playerInId: json['playerInId'] as String?,
       playerId: json['playerId'] as String?,
+      playerOutIds: (json['playerOutIds'] as List<dynamic>? ?? const [])
+          .whereType<String>()
+          .toList(),
+      playerInIds: (json['playerInIds'] as List<dynamic>? ?? const [])
+          .whereType<String>()
+          .toList(),
+      previousMatchSecond: json['previousMatchSecond'] as int?,
     );
   }
 }
