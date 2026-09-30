@@ -58,6 +58,7 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
                 number: player.number,
                 name: player.name,
                 onField: player.onField,
+                started: player.started,
                 playedSeconds: player.playedSeconds,
                 goals: player.goals,
               ),
