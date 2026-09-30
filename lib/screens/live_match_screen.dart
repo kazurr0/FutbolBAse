@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 
@@ -330,14 +331,14 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
           playerIn.onField = false;
           break;
         case MatchEventType.goalFor:
-          _homeGoals = (_homeGoals - 1).clamp(0, 999);
+          _homeGoals = (_homeGoals - 1).clamp(0, 999).toInt();
           if (event.playerId != null) {
             final player = _players.firstWhere((p) => p.id == event.playerId);
-            player.goals = (player.goals - 1).clamp(0, 999);
+            player.goals = (player.goals - 1).clamp(0, 999).toInt();
           }
           break;
         case MatchEventType.goalAgainst:
-          _awayGoals = (_awayGoals - 1).clamp(0, 999);
+          _awayGoals = (_awayGoals - 1).clamp(0, 999).toInt();
           break;
       }
     });
@@ -621,7 +622,7 @@ class _PlayerRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 5),
                   LinearProgressIndicator(
-                    value: progress.clamp(0.0, 1.0),
+                    value: progress < 0 ? 0 : (progress > 1 ? 1 : progress),
                     minHeight: 6,
                     borderRadius: BorderRadius.circular(99),
                   ),
