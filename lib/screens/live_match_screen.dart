@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../models/match_event.dart';
 import '../models/player.dart';
+import '../services/local_storage_service.dart';
 
 class LiveMatchScreen extends StatefulWidget {
   const LiveMatchScreen({super.key});
@@ -14,6 +15,8 @@ class LiveMatchScreen extends StatefulWidget {
 }
 
 class _LiveMatchScreenState extends State<LiveMatchScreen> {
+  final LocalStorageService _storage = LocalStorageService();
+
   final List<Player> _players = [
     Player(id: '13', number: 13, name: 'Leo García Prada', onField: true),
     Player(id: '3', number: 3, name: 'Hugo Aira Almeida', onField: true),
@@ -44,6 +47,44 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
       _players.where((player) => !player.onField).toList();
 
   @override
+  void initState() {
+    super.initState();
+    _restoreMatch();
+  }
+
+  Future<void> _restoreMatch() async {
+    final snapshot = await _storage.loadMatch();
+    if (snapshot == null || !mounted) return;
+
+    setState(() {
+      if (snapshot.players.isNotEmpty) {
+        _players
+          ..clear()
+          ..addAll(snapshot.players.map(Player.fromJson));
+      }
+      _events
+        ..clear()
+        ..addAll(snapshot.events.map(MatchEvent.fromJson));
+      _matchSeconds = snapshot.matchSeconds;
+      _homeGoals = snapshot.homeGoals;
+      _awayGoals = snapshot.awayGoals;
+      _running = false;
+    });
+  }
+
+  Future<void> _persistMatch() async {
+    await _storage.saveMatch(
+      MatchSnapshot(
+        matchSeconds: _matchSeconds,
+        homeGoals: _homeGoals,
+        awayGoals: _awayGoals,
+        players: _players.map((player) => player.toJson()).toList(),
+        events: _events.map((event) => event.toJson()).toList(),
+      ),
+    );
+  }
+
+  @override
   void dispose() {
     _timer?.cancel();
     super.dispose();
@@ -51,6 +92,7 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
 
   void _toggleTimer() {
     setState(() => _running = !_running);
+    _persistMatch();
 
     if (_running) {
       _timer ??= Timer.periodic(const Duration(seconds: 1), (_) {
@@ -63,6 +105,9 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
             }
           }
         });
+        if (_matchSeconds % 5 == 0) {
+          _persistMatch();
+        }
       });
     }
   }
@@ -180,6 +225,7 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
       );
     });
 
+    _persistMatch();
     _showUndoSnackBar('Cambio registrado');
   }
 
@@ -298,6 +344,7 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
       }
     });
 
+    _persistMatch();
     _showUndoSnackBar('Gol registrado');
   }
 
@@ -342,6 +389,7 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
           break;
       }
     });
+    _persistMatch();
   }
 
   @override
