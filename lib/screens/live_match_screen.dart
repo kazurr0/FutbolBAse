@@ -38,6 +38,9 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
   int _matchSeconds = 0;
   int _homeGoals = 0;
   int _awayGoals = 0;
+  bool _isHalftime = false;
+  bool _secondHalf = false;
+  String? _notice;
 
   List<Player> get _onField =>
       _players.where((player) => player.onField).toList();
@@ -97,6 +100,8 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
       _matchSeconds = snapshot.matchSeconds;
       _homeGoals = snapshot.homeGoals;
       _awayGoals = snapshot.awayGoals;
+      _isHalftime = snapshot.isHalftime;
+      _secondHalf = snapshot.secondHalf;
       _running = false;
     });
   }
@@ -113,6 +118,8 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
         awayGoals: _awayGoals,
         players: _players.map((player) => player.toJson()).toList(),
         events: _events.map((event) => event.toJson()).toList(),
+        isHalftime: _isHalftime,
+        secondHalf: _secondHalf,
       ),
     );
   }
@@ -124,6 +131,7 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
   }
 
   void _toggleTimer() {
+    if (_isHalftime) return;
     setState(() => _running = !_running);
     _persistMatch();
 
@@ -259,7 +267,7 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
     });
 
     _persistMatch();
-    _showUndoSnackBar('Cambio registrado');
+    _showNotice('Cambio registrado');
   }
 
   Future<void> _registerGoal() async {
@@ -378,21 +386,66 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
     });
 
     _persistMatch();
-    _showUndoSnackBar('Gol registrado');
+    _showNotice('Gol registrado');
   }
 
-  void _showUndoSnackBar(String message) {
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          action: SnackBarAction(
-            label: 'Deshacer',
-            onPressed: _undoLastEvent,
+  void _showNotice(String message) {
+    setState(() => _notice = message);
+    Future<void>.delayed(const Duration(seconds: 2), () {
+      if (!mounted || _notice != message) return;
+      setState(() => _notice = null);
+    });
+  }
+
+  void _toggleHalftime() {
+    if (!_secondHalf && !_isHalftime) {
+      setState(() {
+        _running = false;
+        _isHalftime = true;
+        _events.insert(
+          0,
+          MatchEvent(
+            type: MatchEventType.halftime,
+            matchSecond: _matchSeconds,
+            description: 'Descanso',
           ),
-        ),
-      );
+        );
+      });
+      _persistMatch();
+      _showNotice('Descanso registrado');
+      return;
+    }
+
+    if (_isHalftime) {
+      setState(() {
+        _isHalftime = false;
+        _secondHalf = true;
+        _running = true;
+        _events.insert(
+          0,
+          MatchEvent(
+            type: MatchEventType.secondHalf,
+            matchSecond: _matchSeconds,
+            description: 'Comienza la 2ª parte',
+          ),
+        );
+      });
+      _timer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!_running || !mounted) return;
+        setState(() {
+          _matchSeconds++;
+          for (final player in _players) {
+            if (player.onField) player.playedSeconds++;
+          }
+        });
+        if (_matchSeconds % 5 == 0) _persistMatch();
+      });
+      _persistMatch();
+      _showNotice('2ª parte iniciada');
+      return;
+    }
+
+    _finishMatch();
   }
 
   void _undoLastEvent() {
@@ -419,6 +472,15 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
           break;
         case MatchEventType.goalAgainst:
           _awayGoals = (_awayGoals - 1).clamp(0, 999).toInt();
+          break;
+        case MatchEventType.halftime:
+          _isHalftime = false;
+          _secondHalf = false;
+          break;
+        case MatchEventType.secondHalf:
+          _running = false;
+          _isHalftime = true;
+          _secondHalf = false;
           break;
       }
     });
@@ -500,12 +562,6 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
   }
 
   Future<void> _finishMatch() async {
-    if (_running) {
-      setState(() => _running = false);
-    }
-    await _persistMatch();
-    if (!mounted) return;
-
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -528,6 +584,8 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
 
     if (confirmed != true || !mounted) return;
 
+    setState(() => _running = false);
+    await _persistMatch();
     await _storage.clearMatch();
     if (!mounted) return;
 
@@ -577,41 +635,42 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
               awayGoals: _awayGoals,
               time: _formatTime(_matchSeconds),
               running: _running,
+              phaseText: _isHalftime
+                  ? 'Descanso'
+                  : (_secondHalf ? '2ª parte' : '1ª parte'),
               onToggle: _toggleTimer,
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: _registerGoal,
-                      icon: const Icon(Icons.sports_soccer),
-                      label: const Text('Gol'),
+            if (_notice != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+                child: Material(
+                  color: Theme.of(context).colorScheme.inverseSurface,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_circle, color: Colors.greenAccent),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _notice!,
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onInverseSurface,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton.tonalIcon(
-                      onPressed: _registerSubstitution,
-                      icon: const Icon(Icons.swap_horiz),
-                      label: const Text('Cambio'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-              child: SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _finishMatch,
-                  icon: const Icon(Icons.flag),
-                  label: const Text('Finalizar partido'),
                 ),
               ),
-            ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
@@ -640,6 +699,21 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
           ],
         ),
       ),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(10, 4, 10, 8),
+        child: _MatchActionBar(
+          onGoal: _registerGoal,
+          onSubstitution: _registerSubstitution,
+          onPhase: _toggleHalftime,
+          onUndo: _events.isEmpty ? null : _undoLastEvent,
+          phaseIcon: _isHalftime
+              ? Icons.play_arrow
+              : (_secondHalf ? Icons.flag : Icons.free_breakfast),
+          phaseLabel: _isHalftime
+              ? '2ª parte'
+              : (_secondHalf ? 'Final' : 'Descanso'),
+        ),
+      ),
     );
   }
 }
@@ -653,6 +727,7 @@ class _ScoreHeader extends StatelessWidget {
     required this.awayGoals,
     required this.time,
     required this.running,
+    required this.phaseText,
     required this.onToggle,
   });
 
@@ -663,6 +738,7 @@ class _ScoreHeader extends StatelessWidget {
   final int awayGoals;
   final String time;
   final bool running;
+  final String phaseText;
   final VoidCallback onToggle;
 
   @override
@@ -701,6 +777,14 @@ class _ScoreHeader extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                   ),
             ),
+            Text(
+              phaseText,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 4),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -726,6 +810,101 @@ class _ScoreHeader extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MatchActionBar extends StatelessWidget {
+  const _MatchActionBar({
+    required this.onGoal,
+    required this.onSubstitution,
+    required this.onPhase,
+    required this.onUndo,
+    required this.phaseIcon,
+    required this.phaseLabel,
+  });
+
+  final VoidCallback onGoal;
+  final VoidCallback onSubstitution;
+  final VoidCallback onPhase;
+  final VoidCallback? onUndo;
+  final IconData phaseIcon;
+  final String phaseLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 8,
+      borderRadius: BorderRadius.circular(18),
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        child: Row(
+          children: [
+            _MatchAction(
+              icon: Icons.sports_soccer,
+              label: 'Gol',
+              onPressed: onGoal,
+            ),
+            _MatchAction(
+              icon: Icons.swap_horiz,
+              label: 'Cambio',
+              onPressed: onSubstitution,
+            ),
+            _MatchAction(
+              icon: phaseIcon,
+              label: phaseLabel,
+              onPressed: onPhase,
+            ),
+            _MatchAction(
+              icon: Icons.undo,
+              label: 'Deshacer',
+              onPressed: onUndo,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MatchAction extends StatelessWidget {
+  const _MatchAction({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 25),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
