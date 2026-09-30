@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/local_storage_service.dart';
 import 'live_match_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -11,10 +12,40 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _formKey = GlobalKey<FormState>();
+  final LocalStorageService _storage = LocalStorageService();
+  MatchSnapshot? _savedMatch;
   final _teamController = TextEditingController(text: 'S.D. Ponferradina');
   final _rivalController = TextEditingController(text: 'C.D. Ponferrada City');
   final _roundController = TextEditingController(text: '24');
   final _minutesController = TextEditingController(text: '50');
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedMatch();
+  }
+
+  Future<void> _loadSavedMatch() async {
+    final snapshot = await _storage.loadMatch();
+    if (!mounted) return;
+    setState(() => _savedMatch = snapshot);
+  }
+
+  void _continueMatch() {
+    final match = _savedMatch;
+    if (match == null) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LiveMatchScreen(
+          homeTeam: match.homeTeam,
+          awayTeam: match.awayTeam,
+          round: match.round,
+          plannedMinutes: match.plannedMinutes,
+        ),
+      ),
+    ).then((_) => _loadSavedMatch());
+  }
 
   @override
   void dispose() {
@@ -37,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
           plannedMinutes: int.parse(_minutesController.text.trim()),
         ),
       ),
-    );
+    ).then((_) => _loadSavedMatch());
   }
 
   @override
@@ -61,7 +92,21 @@ class _HomeScreenState extends State<HomeScreen> {
             const Text(
               'Configura el encuentro y entra directamente al control de minutos.',
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            if (_savedMatch != null) ...[
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.restore),
+                  title: const Text('Continuar partido guardado'),
+                  subtitle: Text(
+                    '${_savedMatch!.homeTeam} vs ${_savedMatch!.awayTeam} · Jornada ${_savedMatch!.round}',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _continueMatch,
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             Form(
               key: _formKey,
               child: Column(
