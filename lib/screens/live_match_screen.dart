@@ -425,6 +425,80 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
     _persistMatch();
   }
 
+  void _showHistory() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: SizedBox(
+            height: MediaQuery.sizeOf(context).height * 0.65,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Historial del partido',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      if (_events.isNotEmpty)
+                        TextButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _undoLastEvent();
+                          },
+                          icon: const Icon(Icons.undo),
+                          label: const Text('Deshacer último'),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: _events.isEmpty
+                      ? const Center(
+                          child: Text('Todavía no hay eventos registrados.'),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
+                          itemCount: _events.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 4),
+                          itemBuilder: (context, index) {
+                            final event = _events[index];
+                            return ListTile(
+                              dense: true,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              tileColor:
+                                  Theme.of(context).colorScheme.surfaceContainer,
+                              leading: Icon(
+                                event.type == MatchEventType.substitution
+                                    ? Icons.swap_horiz
+                                    : Icons.sports_soccer,
+                              ),
+                              title: Text(event.description),
+                              trailing: Text(_formatTime(event.matchSecond)),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _finishMatch() async {
     if (_running) {
       setState(() => _running = false);
@@ -473,16 +547,24 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final maxSeconds = _players.fold<int>(
-      1,
-      (currentMax, player) =>
-          player.playedSeconds > currentMax ? player.playedSeconds : currentMax,
-    );
+    final plannedSeconds =
+        widget.plannedMinutes > 0 ? widget.plannedMinutes * 60 : 1;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Partido en directo'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'Historial',
+            onPressed: _showHistory,
+            icon: Badge(
+              isLabelVisible: _events.isNotEmpty,
+              label: Text('${_events.length}'),
+              child: const Icon(Icons.history),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -539,7 +621,7 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
                     (player) => _PlayerRow(
                       player: player,
                       time: _formatTime(player.playedSeconds),
-                      progress: player.playedSeconds / maxSeconds,
+                      progress: player.playedSeconds / plannedSeconds,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -548,59 +630,15 @@ class _LiveMatchScreenState extends State<LiveMatchScreen> {
                     (player) => _PlayerRow(
                       player: player,
                       time: _formatTime(player.playedSeconds),
-                      progress: player.playedSeconds / maxSeconds,
+                      progress: player.playedSeconds / plannedSeconds,
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Últimos eventos',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      if (_events.isNotEmpty)
-                        TextButton.icon(
-                          onPressed: _undoLastEvent,
-                          icon: const Icon(Icons.undo, size: 18),
-                          label: const Text('Deshacer'),
-                        ),
-                    ],
-                  ),
-                  if (_events.isEmpty)
-                    const Card(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text(
-                          'Los cambios y goles aparecerán aquí.',
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    )
-                  else
-                    ..._events.take(6).map(
-                          (event) => Card(
-                            child: ListTile(
-                              leading: Icon(
-                                event.type == MatchEventType.substitution
-                                    ? Icons.swap_horiz
-                                    : Icons.sports_soccer,
-                              ),
-                              title: Text(event.description),
-                              trailing: Text(_formatTime(event.matchSecond)),
-                            ),
-                          ),
-                        ),
+
                 ],
               ),
             ),
           ],
-        ),
-      ),
-    );
+        );
   }
 }
 
@@ -701,7 +739,7 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 2),
       child: Row(
         children: [
           Text(
@@ -709,9 +747,9 @@ class _SectionTitle extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
           const SizedBox(width: 6),
-          Chip(
-            visualDensity: VisualDensity.compact,
-            label: Text('$count'),
+          Text(
+            '($count)',
+            style: const TextStyle(fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -732,14 +770,21 @@ class _PlayerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 3),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1),
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+        ),
+      ),
+      child:
         child: Row(
           children: [
             CircleAvatar(
-              radius: 18,
+              radius: 14,
               child: Text(
                 '${player.number}',
                 style: const TextStyle(fontWeight: FontWeight.w700),
@@ -767,10 +812,10 @@ class _PlayerRow extends StatelessWidget {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 3),
                   LinearProgressIndicator(
                     value: progress < 0 ? 0 : (progress > 1 ? 1 : progress),
-                    minHeight: 6,
+                    minHeight: 4,
                     borderRadius: BorderRadius.circular(99),
                   ),
                 ],
